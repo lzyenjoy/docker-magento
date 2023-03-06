@@ -1,0 +1,83 @@
+version: "3"
+
+services:
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:8000"
+      - "443:8443"
+    volumes: &app_volumes
+      - ~/.composer:/var/www/.composer:cached
+      - ~/.ssh/id_rsa:/var/www/.ssh/id_rsa:cached
+      - ~/.ssh/known_hosts:/var/www/.ssh/known_hosts:cached
+      - app_data:/var/www/html
+      - sock_data:/sock
+      - ssl_data:/etc/nginx/certs
+    extra_hosts: &app_extra_hosts
+    ## Linux, uncomment for Xdebug capabilities:
+      - "host.docker.internal:host-gateway"
+  php-fpm:
+    build: ./php
+    volumes: *app_volumes
+    env_file:
+      - "env/php_fpm.env"
+    extra_hosts: *app_extra_hosts
+  mysql:
+    image: mysql
+#    command:
+#      --max_allowed_packet=64M
+#      --optimizer_use_condition_selectivity=1
+#      --optimizer_switch="rowid_filter=off"
+    ports:
+      - "3306:3306"
+    env_file:
+      - "env/mysql.env"
+    volumes:
+      - mysql_data:/var/lib/mysql
+  redis:
+    image: redis:6.2-alpine
+    ports:
+      - "6379:6379"
+  elasticsearch:
+    build: ./es
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    env_file:
+      - "env/elasticsearch.env"
+    environment:
+      - "discovery.type=single-node"
+      - "cluster.routing.allocation.disk.threshold_enabled=false"
+      - "index.blocks.read_only_allow_delete"
+  rabbitmq:
+    build: ./rabbitmq
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    env_file:
+      - "env/rabbitmq.env"
+  mailcatcher:
+    image: dockage/mailcatcher
+    ports:
+      - "1080:1080"
+#  # Blackfire support, uncomment to enable
+#  blackfire:
+#    image: blackfire/blackfire:2
+#    ports:
+#      - "8307"
+#    env_file: env/blackfire.env
+#
+#  # Selenium support, uncomment to enable
+#  selenium:
+#    image: selenium/standalone-chrome-debug:3.8.1
+#    ports:
+#      - "5900:5900"
+#    extra_hosts: *appextrahosts
+volumes:
+  app_data:
+  mysql_data:
+  rabbitmq_data:
+  sock_data:
+  ssl_data:
